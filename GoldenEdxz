@@ -1,60 +1,57 @@
-local Aiming = loadstring(game:HttpGet("https://pastebin.com/raw/SnBTdXsz"))()
-Aiming.TeamCheck(false)
+,local hotkey = "t" -- toggle key
+local mouse = game.Players.LocalPlayer:GetMouse()
 
-local Workspace = game:GetService("Workspace")
+
+
+mouse.KeyDown:Connect(function(key)
+if key == hotkey then
+if getgenv().ValiantAimHacks.SilentAimEnabled == false then
+ getgenv().ValiantAimHacks.SilentAimEnabled = true
+else
+getgenv().ValiantAimHacks.SilentAimEnabled = false
+end
+end
+end)
+
+
+-- // Services
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
+-- // Vars
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local CurrentCamera = Workspace.CurrentCamera
+local accomidationfactor = 0.12567724521
 
-local DaHoodSettings = {
-    SilentAim = true,
-    AimLock = false,
-    Prediction = 0.157,
-    AimLockKeybind = Enum.KeyCode.X
-}
-getgenv().DaHoodSettings = DaHoodSettings
+-- // Silent Aim Module
+local SilentAim = loadstring(game:HttpGet("https://pastebin.com/raw/GZ3AJ7GP", true))()
+SilentAim.TeamCheck = false
+-- // Metatable vars
+local mt = getrawmetatable(game)
+local backupindex = mt.__index
+setreadonly(mt, false)
 
-function Aiming.Check()
-    if not (Aiming.Enabled == true and Aiming.Selected ~= LocalPlayer and Aiming.SelectedPart ~= nil) then
-        return false
-    end
+-- // Check if player is down
+SilentAim.checkSilentAim = function()
+    local checkA = (SilentAim.SilentAimEnabled == true and SilentAim.Selected ~= LocalPlayer)
+    local playerCharacter = SilentAim.Selected.Character
+    local daHood = (playerCharacter.BodyEffects["K.O"].Value == false or playerCharacter:FindFirstChild("GRABBING_CONSTRAINT") ~= nil)
 
-    local Character = Aiming.Character(Aiming.Selected)
-    local KOd = Character:WaitForChild("BodyEffects")["K.O"].Value
-    local Grabbed = Character:FindFirstChild("GRABBING_CONSTRAINT") ~= nil
-
-    if (KOd or Grabbed) then
-        return false
-    end
-
-    return true
+    return (checkA and daHood)
 end
 
-local __index
-__index = hookmetamethod(game, "__index", function(t, k)
-    if (t:IsA("Mouse") and (k == "Hit" or k == "Target") and Aiming.Check()) then
-        local SelectedPart = Aiming.SelectedPart
-
-        if (DaHoodSettings.SilentAim and (k == "Hit" or k == "Target")) then
-            local Hit = SelectedPart.CFrame + (SelectedPart.Velocity * DaHoodSettings.Prediction)
-
-            return (k == "Hit" and Hit or SelectedPart)
+-- // Hook
+mt.__index = newcclosure(function(t, k)
+    if (t:IsA("Mouse") and (k == "Hit")) then
+        print(t, k)
+        local CPlayer = SilentAim.Selected
+        if (SilentAim.checkSilentAim()) then
+            if (CPlayer.Character:FindFirstChild("HumanoidRootPart")) then
+                return {p=(CPlayer.Character.HumanoidRootPart.CFrame.p+(CPlayer.Character.HumanoidRootPart.Velocity*accomidationfactor))}
+            end
         end
     end
-
-    return __index(t, k)
+    return backupindex(t, k)
 end)
 
-RunService:BindToRenderStep("AimLock", 0, function()
-    if (DaHoodSettings.AimLock and Aiming.Check() and UserInputService:IsKeyDown(DaHoodSettings.AimLockKeybind)) then
-        local SelectedPart = Aiming.SelectedPart
-
-        local Hit = SelectedPart.CFrame + (SelectedPart.Velocity * DaHoodSettings.Prediction)
-
-        CurrentCamera.CFrame = CFrame.lookAt(CurrentCamera.CFrame.Position, Hit.Position)
-    end
-end)
+-- // Revert
+setreadonly(mt, true)
+getgenv().ValiantAimHacks.FOV = 17
